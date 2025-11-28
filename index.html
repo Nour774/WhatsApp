@@ -1,140 +1,178 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>تسجيل الدخول / إنشاء حساب</title>
-<style>
-body { font-family: "Tahoma",sans-serif; background: linear-gradient(135deg,#6a0572,#b5173a); margin:0; display:flex; align-items:center; justify-content:center; height:100vh; }
-.container { background:#fff0f6;padding:30px;border-radius:15px; box-shadow:0 4px 25px rgba(0,0,0,0.3); width:320px;text-align:center;position:relative;}
-h2 { margin-bottom:20px;color:#6a0572;text-shadow:1px 1px 3px #b5173a; }
-input,button { width:100%;padding:12px;margin:10px 0;border-radius:8px;border:2px solid #6a0572; box-sizing:border-box;font-size:14px }
-input:focus { border-color:#b5173a }
-button { background:linear-gradient(135deg,#b5173a,#6a0572); color:#fff;border:none;cursor:pointer;font-weight:700;transition:.25s }
-button:disabled { background:#ccc;cursor:not-allowed }
-.password-wrapper{position:relative}
-.password-wrapper input{padding-right:40px}
-.toggle-password{position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:#b5173a;width:22px;height:22px;}
-.switch{margin-top:12px;font-size:14px}
-.switch span{color:#6a0572}
-.switch a{color:#6a0572;font-weight:700;text-decoration:none;margin-inline-start:6px;cursor:pointer}
-.alert{position:absolute;top:-56px;left:50%;transform:translateX(-50%);padding:10px 14px;border-radius:8px;font-weight:700;display:none;box-shadow:0 2px 8px rgba(0,0,0,.2)}
-.alert.success{background:#4CAF50;color:#fff}
-.alert.error{background:#f44336;color:#fff}
-#invite_code{display:none}
-</style>
-</head>
-<body>
-<div class="container">
-<div id="alert-box" class="alert"></div>
-<h2 id="form-title">تسجيل الدخول</h2>
-<form id="auth-form">
-<input type="text" id="username" placeholder="اسم المستخدم" required>
-<input type="text" id="invite_code" placeholder="كود الدعوة">
-<div class="password-wrapper">
-<input type="password" id="password" placeholder="كلمة المرور" required>
-<svg id="toggle-pass" class="toggle-password" viewBox="0 0 24 24">
-<path id="eye-icon" fill="currentColor" d="M12 5c-7 0-11 7-11 7s4 7 11 7 11-7 11-7-4-7-11-7zm0 12a5 5 0 1 1 .001-10.001A5 5 0 0 1 12 17z"/>
-</svg>
-</div>
-<button type="submit" id="submit-btn">دخول</button>
-</form>
-<div class="switch">
-<span id="switch-label">ليس لديك حساب؟</span>
-<a id="switch-link">إنشاء حساب جديد</a>
-</div>
-</div>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>تسجيل الدخول / إنشاء حساب</title>
 
-<script src="https://unpkg.com/@supabase/supabase-js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
-<script>
-const supabaseUrl = "https://hmamaaqtnzevrrmgtgxk.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtYW1hYXF0bnpldnJybWd0Z3hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNTgzMDAsImV4cCI6MjA3NzkzNDMwMH0.tk_S2URpkYvf8xnsPJl3Dqh4jzKwhVm0alWl8oHo-SE";
-const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-
-let isLogin = true;
-const alertBox = document.getElementById('alert-box');
-const formTitle = document.getElementById('form-title');
-const switchLabel = document.getElementById('switch-label');
-const switchLink = document.getElementById('switch-link');
-const submitBtn = document.getElementById('submit-btn');
-const inviteCode = document.getElementById('invite_code');
-const eyeIcon = document.getElementById("eye-icon");
-const togglePass = document.getElementById("toggle-pass");
-const passwordInput = document.getElementById('password');
-
-function showAlert(msg,type="error") {
-  alertBox.textContent = msg;
-  alertBox.className = "alert " + (type==="success"?"success":"error");
-  alertBox.style.display = "block";
-  clearTimeout(alertBox._t);
-  alertBox._t = setTimeout(()=> alertBox.style.display="none",6000);
-}
-
-togglePass.addEventListener("click",()=>{
-  const isHidden = passwordInput.type==="password";
-  passwordInput.type = isHidden?"text":"password";
-  eyeIcon.setAttribute("d",
-    isHidden
-      ? "M12 5c-7 0-11 7-11 7s4 7 11 7 11-7 11-7-4-7-11-7zm0 12a5 5 0 1 1 .001-10.001A5 5 0 0 1 12 17z"
-      : "M2 4.27 3.28 3 21 20.72 19.73 22l-2.2-2.2C15.88 21.2 14 22 12 22c-7 0-11-7-11-7 1.21-2.13 3.05-3.91 5.21-5.1L2 4.27zm18.44 6.65C21.35 12.28 23 14 23 14s-4 7-11 7c-2.03 0-3.92-.79-5.52-1.92l1.45-1.45A6 6 0 0 0 18 12a6 6 0 0 0-.63-2.67l1.45-1.45c.76.75 1.39 1.66 1.62 2.04z"
-  );
-});
-
-switchLink.addEventListener("click",()=> toggleForm());
-
-function toggleForm() {
-  isLogin = !isLogin;
-  if(isLogin){
-    formTitle.textContent="تسجيل الدخول";
-    submitBtn.textContent="دخول";
-    switchLabel.textContent="ليس لديك حساب؟";
-    switchLink.textContent="إنشاء حساب جديد";
-    inviteCode.style.display="none";
-  } else {
-    formTitle.textContent="إنشاء حساب جديد";
-    submitBtn.textContent="تسجيل";
-    switchLabel.textContent="لديك حساب؟";
-    switchLink.textContent="تسجيل الدخول";
-    inviteCode.style.display="block";
-  }
-}
-
-document.getElementById("auth-form").addEventListener("submit",async(e)=>{
-  e.preventDefault();
-  submitBtn.disabled=true;
-  const username=document.getElementById('username').value.trim();
-  const password=passwordInput.value.trim();
-  const code=inviteCode.value.trim();
-
-  try{
-    if(isLogin){
-      const {data:profile,error}=await supabase.from('profiles').select('id,password_hash').eq('username',username).single();
-      if(error||!profile){ showAlert("اسم المستخدم غير موجود"); submitBtn.disabled=false; return; }
-
-      const match = bcrypt.compareSync(password, profile.password_hash);
-      if(!match){ showAlert("كلمة المرور غير صحيحة"); submitBtn.disabled=false; return; }
-
-      showAlert("تم تسجيل الدخول!", "success");
-      setTimeout(()=> window.location.href="chat.html",900);
-
-    } else {
-      if(!code){ showAlert("كود الدعوة مطلوب"); submitBtn.disabled=false; return; }
-
-      const {data:inv,error:invErr}=await supabase.from('invchat').select('*').eq('code',code).eq('used',false).single();
-      if(invErr||!inv){ showAlert("كود الدعوة غير صالح"); submitBtn.disabled=false; return; }
-
-      const hash=bcrypt.hashSync(password,10);
-      const {data:user,error:signupErr}=await supabase.from('profiles').insert([{username,password_hash:hash}]).select().single();
-      if(signupErr){ showAlert("خطأ: "+signupErr.message); submitBtn.disabled=false; return; }
-
-      await supabase.from('invchat').update({used:true}).eq('code',code);
-      showAlert("تم إنشاء الحساب بنجاح!", "success");
+  <style>
+    body {
+      font-family: "Tahoma", sans-serif;
+      background: linear-gradient(135deg,#6a0572,#b5173a);
+      margin:0;display:flex;align-items:center;justify-content:center;height:100vh;
     }
-  }catch(err){ console.log(err); showAlert("خطأ غير متوقع"); }
+    .container {
+      background:#fff0f6;padding:30px;border-radius:15px;
+      box-shadow:0 4px 25px rgba(0,0,0,0.3);
+      width:320px;text-align:center;position:relative;
+    }
+    h2 { margin-bottom:20px;color:#6a0572;text-shadow:1px 1px 3px #b5173a; }
+    input,button {
+      width:100%;padding:12px;margin:10px 0;border-radius:8px;
+      border:2px solid #6a0572;box-sizing:border-box;font-size:14px
+    }
+    input:focus { border-color:#b5173a }
+    button {
+      background:linear-gradient(135deg,#b5173a,#6a0572);
+      color:#fff;border:none;cursor:pointer;font-weight:700;transition:.25s
+    }
+    button:disabled{background:#ccc;cursor:not-allowed}
+    .password-wrapper{position:relative}
+    .password-wrapper input{padding-right:40px}
+    .toggle-password{
+      position:absolute;right:10px;top:50%;
+      transform:translateY(-50%);cursor:pointer;
+      color:#b5173a;width:22px;height:22px;
+    }
+    .switch{margin-top:12px;font-size:14px}
+    .switch span{color:#6a0572}
+    .switch a{color:#6a0572;font-weight:700;text-decoration:none;margin-inline-start:6px;cursor:pointer}
+    .alert{position:absolute;top:-56px;left:50%;transform:translateX(-50%);
+      padding:10px 14px;border-radius:8px;font-weight:700;display:none;
+      box-shadow:0 2px 8px rgba(0,0,0,.2)}
+    .alert.success{background:#4CAF50;color:#fff}
+    .alert.error{background:#f44336;color:#fff}
+    #invite_code{display:none}
+  </style>
+</head>
 
-  submitBtn.disabled=false;
-});
-</script>
+<body>
+  <div class="container">
+    <div id="alert-box" class="alert"></div>
+
+    <h2 id="form-title">تسجيل الدخول</h2>
+
+    <form id="auth-form">
+      <input type="text" id="username" placeholder="اسم المستخدم" required>
+      <input type="text" id="invite_code" placeholder="كود الدعوة">
+      <div class="password-wrapper">
+        <input type="password" id="password" placeholder="كلمة المرور" required>
+        <!-- أيقونة عرض / إخفاء -->
+        <svg id="toggle-pass" class="toggle-password" viewBox="0 0 24 24">
+          <path id="eye-icon" fill="currentColor"
+            d="M12 5c-7 0-11 7-11 7s4 7 11 7 11-7 11-7-4-7-11-7zm0 12a5 5 0 1 1 .001-10.001A5 5 0 0 1 12 17z" />
+        </svg>
+      </div>
+      <button type="submit" id="submit-btn">دخول</button>
+    </form>
+
+    <div class="switch">
+      <span id="switch-label">ليس لديك حساب؟</span>
+      <a id="switch-link">إنشاء حساب جديد</a>
+    </div>
+  </div>
+
+  <!-- مكتبة Supabase -->
+  <script src="https://unpkg.com/@supabase/supabase-js"></script>
+  <!-- مكتبة bcryptjs -->
+  <script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
+
+  <script>
+    const supabaseUrl = "https://hmamaaqtnzevrrmgtgxk.supabase.co";
+    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtYW1hYXF0bnpldnJybWd0Z3hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNTgzMDAsImV4cCI6MjA3NzkzNDMwMH0.tk_S2URpkYvf8xnsPJl3Dqh4jzKwhVm0alWl8oHo-SE";
+    const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+    let isLogin = true;
+
+    const alertBox = document.getElementById('alert-box');
+    const formTitle = document.getElementById('form-title');
+    const switchLabel = document.getElementById('switch-label');
+    const switchLink = document.getElementById('switch-link');
+    const submitBtn = document.getElementById('submit-btn');
+    const inviteCode = document.getElementById('invite_code');
+    const eyeIcon = document.getElementById("eye-icon");
+    const togglePass = document.getElementById("toggle-pass");
+    const passwordInput = document.getElementById('password');
+
+    function showAlert(msg, type="error") {
+      alertBox.textContent = msg;
+      alertBox.className = "alert " + (type === "success" ? "success" : "error");
+      alertBox.style.display = "block";
+      clearTimeout(alertBox._t);
+      alertBox._t = setTimeout(() => alertBox.style.display = "none", 6000);
+    }
+
+    togglePass.addEventListener("click", () => {
+      const isHidden = passwordInput.type === "password";
+      passwordInput.type = isHidden ? "text" : "password";
+      eyeIcon.setAttribute("d",
+        isHidden
+          ? "M12 5c-7 0-11 7-11 7s4 7 11 7 11-7 11-7-4-7-11-7zm0 12a5 5 0 1 1 .001-10.001A5 5 0 0 1 12 17z"
+          : "M2 4.27 3.28 3 21 20.72 19.73 22l-2.2-2.2C15.88 21.2 14 22 12 22c-7 0-11-7-11-7 1.21-2.13 3.05-3.91 5.21-5.1L2 4.27zm18.44 6.65C21.35 12.28 23 14 23 14s-4 7-11 7c-2.03 0-3.92-.79-5.52-1.92l1.45-1.45A6 6 0 0 0 18 12a6 6 0 0 0-.63-2.67l1.45-1.45c.76.75 1.39 1.66 1.62 2.04z"
+      );
+    });
+
+    switchLink.addEventListener("click", () => toggleForm());
+
+    function toggleForm() {
+      isLogin = !isLogin;
+      if (isLogin) {
+        formTitle.textContent = "تسجيل الدخول";
+        submitBtn.textContent = "دخول";
+        switchLabel.textContent = "ليس لديك حساب؟";
+        switchLink.textContent = "إنشاء حساب جديد";
+        inviteCode.style.display = "none";
+      } else {
+        formTitle.textContent = "إنشاء حساب جديد";
+        submitBtn.textContent = "تسجيل";
+        switchLabel.textContent = "لديك حساب؟";
+        switchLink.textContent = "تسجيل الدخول";
+        inviteCode.style.display = "block";
+      }
+    }
+
+    // تسجيل الدخول / إنشاء الحساب بدون بريد إلكتروني
+    document.getElementById("auth-form").addEventListener("submit", async (e)=>{
+      e.preventDefault();
+      submitBtn.disabled = true;
+
+      const username = document.getElementById('username').value.trim();
+      const password = passwordInput.value.trim();
+
+      try {
+        if(isLogin){
+          const {data:profile,error} = await supabase.from('profiles').select('id,password_hash').eq('username',username).single();
+          if(error || !profile){ showAlert("اسم المستخدم غير موجود"); submitBtn.disabled=false; return; }
+
+          const match = window.bcrypt.compareSync(password, profile.password_hash);
+          if(!match){ showAlert("كلمة المرور غير صحيحة"); submitBtn.disabled=false; return; }
+
+          showAlert("تم تسجيل الدخول!", "success");
+          setTimeout(()=> window.location.href="chat.html",900);
+
+        } else {
+          const code = inviteCode.value.trim();
+          if(!code){ showAlert("كود الدعوة مطلوب"); submitBtn.disabled=false; return; }
+
+          const {data:inv,error:invErr} = await supabase.from('invchat').select('*').eq('code',code).eq('used',false).single();
+          if(invErr || !inv){ showAlert("كود الدعوة غير صالح"); submitBtn.disabled=false; return; }
+
+          const hash = window.bcrypt.hashSync(password, 10);
+          const {data:user,error:signupErr} = await supabase.from('profiles').insert([{username,password_hash:hash}]).select().single();
+          if(signupErr){ showAlert("خطأ: "+signupErr.message); submitBtn.disabled=false; return; }
+
+          await supabase.from('invchat').update({used:true}).eq('code',code);
+          showAlert("تم إنشاء الحساب بنجاح!", "success");
+        }
+
+      } catch(e){
+        console.log(e);
+        showAlert("خطأ غير متوقع");
+      }
+
+      submitBtn.disabled = false;
+    });
+
+  </script>
 </body>
 </html>
