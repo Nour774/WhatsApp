@@ -11,7 +11,6 @@ body { margin:0; font-family:Tahoma, sans-serif; background:#f0f0f0; display:fle
 #messages-list li { margin:5px 0; max-width:70%; padding:8px 12px; border-radius:15px; position:relative; word-wrap:break-word; display:flex; flex-direction:column; }
 #messages-list li.self { background:#6a0572; color:#fff; align-self:flex-end; }
 #messages-list li.other { background:#ddd; color:#000; align-self:flex-start; }
-#messages-list li.admin { background:#fffae5; color:#000; align-self:center; }
 .message-header { font-size:12px; font-weight:700; margin-bottom:3px; display:flex; justify-content:space-between; }
 .message-time { font-size:10px; color:#555; margin-left:5px; }
 .reactions-container { display:flex; flex-wrap:wrap; margin-top:4px; }
@@ -23,7 +22,7 @@ body { margin:0; font-family:Tahoma, sans-serif; background:#f0f0f0; display:fle
 .emoji-picker { position:absolute; background:#fff; border:1px solid #ccc; border-radius:8px; padding:5px; display:none; z-index:100; }
 .emoji-picker span { cursor:pointer; padding:2px; font-size:18px; }
 .reply-preview { font-size:11px; color:#333; margin-bottom:2px; background:#eee; padding:2px 4px; border-radius:5px; }
-img, video { max-width:200px; border-radius:8px; margin-top:3px; }
+img, video { max-width:200px; border-radius:8px; margin-top:4px; }
 </style>
 </head>
 <body>
@@ -43,12 +42,12 @@ img, video { max-width:200px; border-radius:8px; margin-top:3px; }
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
-// ================= Supabase =================
+// === إعداد Supabase ===
 const SUPABASE_URL = "https://hmamaaqtnzevrrmgtgxk.supabase.co";
-const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtYW1hYXF0bnpldnJybWd0Z3hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNTgzMDAsImV4cCI6MjA3NzkzNDMwMH0.tk_S2URpkYvf8xnsPJl3Dqh4jzKwhVm0alWl8oHo-SE";
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+const SUPABASE_ANON = "YOUR_SUPABASE_ANON_KEY";
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-// ================= المستخدم =================
+// === الحصول على المستخدم من localStorage ===
 const currentUserId = localStorage.getItem('chat_user_id');
 const currentUsername = localStorage.getItem('chat_username');
 if(!currentUserId || !currentUsername){
@@ -56,60 +55,65 @@ if(!currentUserId || !currentUsername){
   window.location.href='login.html';
 }
 
-// ================= عناصر الصفحة =================
+// === عناصر الصفحة ===
 const messagesList = document.getElementById('messages-list');
 const messageInput = document.getElementById('message-input');
 const sendBtn = document.getElementById('send-btn');
 const attachBtn = document.getElementById('attach-btn');
 const emojiPicker = document.getElementById('emoji-picker');
+
 let replyToId = null;
 
-// ================= تحميل الرسائل =================
+// === تحميل الرسائل ===
 async function loadMessages(){
-  const { data: messages, error } = await supabase
+  const { data: messages, error } = await supabaseClient
     .from('chat')
-    .select('*, reactions(*), sender_id(username,role)')
+    .select('*, reactions(*), sender_id(*)')
     .order('created_at', { ascending:true });
   if(error){ console.error(error); return; }
+
   messagesList.innerHTML='';
   messages.forEach(renderMessage);
   messagesList.scrollTop = messagesList.scrollHeight;
 }
 
-// ================= عرض الرسائل =================
+// === عرض الرسالة ===
 function renderMessage(msg){
   const li = document.createElement('li');
-  if(msg.sender_id.id===currentUserId) li.className='self';
-  else if(msg.sender_id.role==='admin') li.className='admin';
-  else li.className='other';
+  li.className = msg.sender_id.id === currentUserId ? 'self' : 'other';
 
-  let header = `<div class="message-header">${msg.sender_id.username}<span class="message-time">${new Date(msg.created_at).toLocaleTimeString()}</span></div>`;
-  let reply = msg.reply_to ? `<div class="reply-preview">رد على رسالة #${msg.reply_to}</div>` : '';
+  // الهيدر والوقت
+  const header = `<div class="message-header"><span>${msg.sender_id.username}</span><span class="message-time">${new Date(msg.created_at).toLocaleTimeString()}</span></div>`;
+  const reply = msg.reply_to ? `<div class="reply-preview">رد على رسالة #${msg.reply_to}</div>` : '';
+  
   let content = '';
   if(msg.type==='text') content = `<div>${msg.message}</div>`;
-  else if(msg.type==='image') content=`<img src="${msg.media_url}">`;
-  else if(msg.type==='video') content=`<video src="${msg.media_url}" controls></video>`;
+  else if(msg.type==='image') content = `<img src="${msg.media_url}">`;
+  else if(msg.type==='video') content = `<video src="${msg.media_url}" controls></video>`;
 
   li.innerHTML = header + reply + content;
 
-  // الإيموجي
+  // التفاعلات
   const reactionsDiv = document.createElement('div');
   reactionsDiv.className='reactions-container';
   if(msg.reactions) msg.reactions.forEach(r=>{
-    const span=document.createElement('span');
+    const span = document.createElement('span');
     span.className='reaction';
     span.textContent = r.emoji;
-    span.onclick=async e=>{
+    span.onclick = async e=>{
       e.stopPropagation();
-      if(r.user_id===currentUserId){ await supabase.from('reactions').delete().eq('id',r.id); loadMessages(); }
+      if(r.user_id===currentUserId){ 
+        await supabaseClient.from('reactions').delete().eq('id',r.id);
+        loadMessages();
+      }
     };
     reactionsDiv.appendChild(span);
   });
   li.appendChild(reactionsDiv);
 
-  // الرد وفتح الإيموجي
+  // اختيار الرد أو إظهار قائمة الإيموجي
   li.onclick = e=>{
-    replyToId = msg.id;
+    replyToId=msg.id;
     emojiPicker.style.display='block';
     emojiPicker.style.top=(e.clientY+5)+'px';
     emojiPicker.style.left=(e.clientX+5)+'px';
@@ -119,12 +123,12 @@ function renderMessage(msg){
   messagesList.appendChild(li);
 }
 
-// ================= إرسال الرسائل =================
+// === إرسال رسالة ===
 async function sendMessage(){
   const text = messageInput.value.trim();
   if(!text && !replyToId) return;
-  const { data, error } = await supabase.from('chat')
-    .insert([{ sender_id: currentUserId, message:text, reply_to:replyToId, type:'text' }])
+  const { data, error } = await supabaseClient.from('chat')
+    .insert([{ sender_id: currentUserId, message: text, reply_to: replyToId, type:'text' }])
     .select()
     .maybeSingle();
   if(error){ console.error(error); return; }
@@ -132,7 +136,13 @@ async function sendMessage(){
   messageInput.value=''; replyToId=null;
 }
 
-// ================= رفع الملفات =================
+// === الأحداث ===
+sendBtn.onclick=sendMessage;
+messageInput.addEventListener('keypress', e=>{
+  if(e.key==='Enter'){ sendMessage(); e.preventDefault(); }
+});
+
+// === رفع الملفات ===
 attachBtn.onclick=()=>{
   const fileInput=document.createElement('input');
   fileInput.type='file';
@@ -142,38 +152,33 @@ attachBtn.onclick=()=>{
     const f=fileInput.files[0];
     const ext=f.name.split('.').pop();
     const fileName=`${currentUserId}_${Date.now()}.${ext}`;
-    const { data: storageData, error } = await supabase.storage.from('chat-media').upload(fileName,f);
+    const { data:storageData, error } = await supabaseClient.storage.from('chat-media').upload(fileName,f);
     if(error){ console.error(error); return; }
-    const url = supabase.storage.from('chat-media').getPublicUrl(fileName).publicUrl;
-    const type = f.type.startsWith('image')?'image':'video';
-    await supabase.from('chat').insert([{ sender_id: currentUserId, media_url:url, type }]);
+    const url = supabaseClient.storage.from('chat-media').getPublicUrl(fileName).publicUrl;
+    const type = f.type.startsWith('image') ? 'image':'video';
+    await supabaseClient.from('chat').insert([{ sender_id: currentUserId, media_url:url, type }]);
     loadMessages();
   };
   fileInput.click();
 };
 
-// ================= اختيار الإيموجي =================
+// === اختيار الإيموجي ===
 emojiPicker.querySelectorAll('span').forEach(span=>{
   span.onclick=async ()=>{
     const chatId=emojiPicker.dataset.chatId;
     const emoji=span.textContent;
-    const { data: exists } = await supabase.from('reactions')
+    const { data: exists } = await supabaseClient.from('reactions')
       .select('id').eq('chat_id',chatId).eq('user_id',currentUserId).eq('emoji',emoji).maybeSingle();
-    if(exists){ await supabase.from('reactions').delete().eq('id',exists.id); }
-    else{ await supabase.from('reactions').insert([{chat_id:chatId,user_id:currentUserId,emoji}]); }
+    if(exists){ await supabaseClient.from('reactions').delete().eq('id',exists.id); }
+    else { await supabaseClient.from('reactions').insert([{chat_id:chatId,user_id:currentUserId,emoji}]); }
     emojiPicker.style.display='none';
     loadMessages();
   };
 });
 
-// ================= أحداث =================
-sendBtn.onclick = sendMessage;
-messageInput.addEventListener('keypress', e=>{ if(e.key==='Enter'){ sendMessage(); e.preventDefault(); }});
-
-// ================= تحديث دوري =================
+// === تحديث دوري كل 3 ثواني ===
 loadMessages();
 setInterval(loadMessages,3000);
 </script>
-
 </body>
 </html>
