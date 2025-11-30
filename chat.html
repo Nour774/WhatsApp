@@ -1,193 +1,154 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>الدردشة الجماعية</title>
-
-<script type="module">
-import { createClient } from "https://esm.sh/@supabase/supabase-js";
-
-const supabase = createClient(
-  "https://hmamaaqtnzevrrmgtgxk.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtYW1hYXF0bnpldnJybWd0Z3hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNTgzMDAsImV4cCI6MjA3NzkzNDMwMH0.tk_S2URpkYvf8xnsPJl3Dqh4jzKwhVm0alWl8oHo-SE"
-);
-
-let currentUser = null;
-
-/* ───────────── جلب المستخدم وإلا طرد ───────────── */
-async function loadUser() {
-  const { data } = await supabase.auth.getUser();
-  if (!data?.user) {
-    window.location.href = "login.html";
-    return;
-  }
-  currentUser = data.user;
-}
-await loadUser();
-
-/* ───────────── تحميل الرسائل ───────────── */
-const chatBox = document.getElementById("messages");
-
-async function loadMessages() {
-  const { data } = await supabase
-    .from("chat")
-    .select("id, message, type, created_at, reply_to, sender_id, profiles(username)")
-    .order("id", { ascending: true });
-
-  chatBox.innerHTML = "";
-  data?.forEach(addMessageToUI);
-}
-
-/* ───────────── عرض رسالة في الواجهة ───────────── */
-function addMessageToUI(msg) {
-  const div = document.createElement("div");
-  div.className = "msg";
-
-  let content = "";
-
-  if (msg.type === "image") {
-    content = `<img src="${msg.message}" class="media-img">`;
-  } else if (msg.type === "video") {
-    content = `<video src="${msg.message}" controls class="media-video"></video>`;
-  } else {
-    content = `<p>${msg.message}</p>`;
-  }
-
-  div.innerHTML = `
-    <strong>${msg.profiles?.username || "?"}</strong>
-    ${content}
-    <small>${new Date(msg.created_at).toLocaleTimeString()}</small>
-  `;
-
-  chatBox.appendChild(div);
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-/* ───────────── Realtime ───────────── */
-supabase
-  .channel("chat-room")
-  .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat" }, (payload) => {
-    addMessageToUI(payload.new);
-  })
-  .subscribe();
-
-/* ───────────── إرسال رسالة نص ───────────── */
-async function sendMessage() {
-  const txt = document.getElementById("msg").value.trim();
-  if (!txt) return;
-
-  await supabase.from("chat").insert({
-    message: txt,
-    type: "text",
-    sender_id: currentUser.id,
-  });
-
-  document.getElementById("msg").value = "";
-}
-
-/* ───────────── رفع وسائط ───────────── */
-async function uploadMedia(file) {
-  if (!file) return;
-
-  const ext = file.name.split(".").pop();
-  const filePath = `${Date.now()}.${ext}`;
-
-  const { error } = await supabase.storage
-    .from("bucket_name")
-    .upload(filePath, file);
-
-  if (error) return;
-
-  const { data } = supabase.storage.from("bucket_name").getPublicUrl(filePath);
-
-  const fileType = file.type.startsWith("image") ? "image" : "video";
-
-  await supabase.from("chat").insert({
-    message: data.publicUrl,
-    type: fileType,
-    sender_id: currentUser.id,
-  });
-}
-
-/* ───────────── زر اختيار ملف ───────────── */
-document.getElementById("mediaInput").addEventListener("change", (e) => {
-  uploadMedia(e.target.files[0]);
-});
-</script>
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>دردشة جماعية</title>
 <style>
-body {
-  margin: 0;
-  background: #ececec;
-  font-family: sans-serif;
-}
-#messages {
-  height: calc(100vh - 80px);
-  overflow-y: auto;
-  padding: 10px;
-}
-.msg {
-  background: white;
-  margin-bottom: 10px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  box-shadow: 0 0 2px #aaa;
-}
-.media-img {
-  max-width: 100%;
-  border-radius: 10px;
-}
-.media-video {
-  width: 100%;
-  border-radius: 10px;
-}
-#sendBar {
-  position: fixed;
-  bottom: 0;
-  width: 100%;
-  background: white;
-  padding: 10px;
-  display: flex;
-  gap: 10px;
-}
-#msg {
-  flex: 1;
-  padding: 10px;
-  border-radius: 20px;
-  border: 1px solid #aaa;
-}
-#plus {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #0a84ff;
-  color: white;
-  font-size: 20px;
-  border: none;
-}
-#send {
-  padding: 0 15px;
-  background: #0a84ff;
-  border: none;
-  color: white;
-  border-radius: 20px;
-}
+  body { margin:0; font-family: "Tahoma", sans-serif; background:#f0f0f0; display:flex; flex-direction:column; height:100vh; }
+  #chat-container { flex:1; display:flex; flex-direction:column; padding:10px; overflow:hidden; }
+  #messages-list { flex:1; overflow-y:auto; padding:0; margin:0; list-style:none; }
+  #messages-list li { margin:5px 0; max-width:70%; padding:8px 12px; border-radius:15px; position:relative; word-wrap:break-word; }
+  #messages-list li.self { background:#6a0572; color:#fff; align-self:flex-end; }
+  #messages-list li.other { background:#ddd; color:#000; align-self:flex-start; }
+  .reactions { font-size:14px; margin-top:4px; cursor:pointer; }
+  .reply { font-size:12px; color:#555; margin-bottom:3px; }
+  #message-input-area { display:flex; padding:10px; background:#fff; align-items:center; }
+  #message-input-area input[type="text"] { flex:1; padding:10px 12px; border-radius:20px; border:1px solid #ccc; outline:none; }
+  #message-input-area button { margin-inline-start:8px; padding:10px 16px; border:none; border-radius:50%; cursor:pointer; background:#6a0572; color:#fff; font-size:18px; }
 </style>
 </head>
-
 <body>
-<div id="messages"></div>
 
-<div id="sendBar">
-  <input type="file" id="mediaInput" style="display:none" accept="image/*,video/*" />
-  <button id="plus" onclick="document.getElementById('mediaInput').click()">+</button>
-  <input id="msg" type="text" placeholder="اكتب رسالة…" />
-  <button id="send" onclick="sendMessage()">إرسال</button>
+<div id="chat-container">
+  <ul id="messages-list"></ul>
+  <div id="message-input-area">
+    <button id="attach-btn">+</button>
+    <input type="text" id="message-input" placeholder="اكتب رسالة...">
+    <button id="send-btn">إرسال</button>
+  </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+
 <script>
+const SUPABASE_URL = "https://hmamaaqtnzevrrmgtgxk.supabase.co";
+const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtYW1hYXF0bnpldnJybWd0Z3hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNTgzMDAsImV4cCI6MjA3NzkzNDMwMH0.tk_S2URpkYvf8xnsPJl3Dqh4jzKwhVm0alWl8oHo-SE";
+const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// الحصول على المستخدم من localStorage
+const currentUserId = localStorage.getItem('chat_user_id');
+const currentUsername = localStorage.getItem('chat_username');
+if(!currentUserId || !currentUsername){
+  alert('لم يتم التعرف على المستخدم، جاري إعادة التوجيه...');
+  window.location.href = 'login.html';
+}
+
+// عناصر الصفحة
+const messagesList = document.getElementById('messages-list');
+const messageInput = document.getElementById('message-input');
+const sendBtn = document.getElementById('send-btn');
+const attachBtn = document.getElementById('attach-btn');
+
+let replyToId = null; // لتخزين الرد على رسالة
+
+// تحميل الرسائل
+async function loadMessages(){
+  const { data, error } = await supabase
+    .from('chat')
+    .select('*, sender_id(username), reactions(*)')
+    .order('created_at', { ascending: true });
+  if(error) return console.error(error);
+  messagesList.innerHTML = '';
+  data.forEach(msg => renderMessage(msg));
+  messagesList.scrollTop = messagesList.scrollHeight;
+}
+
+// عرض رسالة
+function renderMessage(msg){
+  const li = document.createElement('li');
+  li.className = msg.sender_id === currentUserId ? 'self' : 'other';
+  if(msg.reply_to) li.innerHTML = `<div class="reply">رد على: ${msg.reply_to_message || 'رسالة'}</div>`;
+  li.innerHTML += `<div>${msg.message || ''}</div>`;
+
+  // التفاعلات
+  const reactionsDiv = document.createElement('div');
+  reactionsDiv.className = 'reactions';
+  reactionsDiv.textContent = msg.reactions?.map(r=>r.emoji).join(' ') || '';
+  reactionsDiv.onclick = ()=>openReactionPicker(msg.id);
+  li.appendChild(reactionsDiv);
+
+  li.onclick = ()=> replyToId = msg.id;
+  messagesList.appendChild(li);
+}
+
+// إرسال رسالة
+async function sendMessage(){
+  const text = messageInput.value.trim();
+  if(!text) return;
+  const { data, error } = await supabase
+    .from('chat')
+    .insert([{ sender_id: currentUserId, message: text, reply_to: replyToId }])
+    .select()
+    .maybeSingle();
+  if(error) return console.error(error);
+  renderMessage(data);
+  messageInput.value = '';
+  replyToId = null;
+  messagesList.scrollTop = messagesList.scrollHeight;
+}
+
+sendBtn.onclick = sendMessage;
+messageInput.addEventListener('keypress', e=>{ if(e.key==='Enter'){ sendMessage(); e.preventDefault(); }});
+
+// رفع ملفات
+attachBtn.onclick = async ()=>{
+  const file = document.createElement('input');
+  file.type='file';
+  file.accept='image/*,video/*';
+  file.onchange = async ()=> {
+    if(!file.files[0]) return;
+    const f = file.files[0];
+    const ext = f.name.split('.').pop();
+    const fileName = `${currentUserId}_${Date.now()}.${ext}`;
+    const { data: storageData, error } = await supabase.storage.from('chat-media').upload(fileName, f);
+    if(error) return console.error(error);
+    const url = supabase.storage.from('chat-media').getPublicUrl(fileName).publicUrl;
+    const type = f.type.startsWith('image') ? 'image' : 'video';
+    const { data: msgData, error: msgErr } = await supabase
+      .from('chat')
+      .insert([{ sender_id: currentUserId, message:'', type, media_url:url }])
+      .select()
+      .maybeSingle();
+    if(msgErr) return console.error(msgErr);
+    renderMessage(msgData);
+    messagesList.scrollTop = messagesList.scrollHeight;
+  }
+  file.click();
+}
+
+// التفاعلات (إيموجي)
+async function openReactionPicker(chatId){
+  const emoji = prompt('أدخل إيموجي'); // يمكن استبداله بـ picker حقيقي
+  if(!emoji) return;
+  const { data: exists } = await supabase
+    .from('reactions')
+    .select('id')
+    .eq('chat_id', chatId)
+    .eq('user_id', currentUserId)
+    .eq('emoji', emoji)
+    .maybeSingle();
+  if(exists){
+    await supabase.from('reactions').delete().eq('id', exists.id);
+  } else {
+    await supabase.from('reactions').insert([{ chat_id: chatId, user_id: currentUserId, emoji }]);
+  }
+  loadMessages();
+}
+
+// تحميل أولي + تحديث كل 3 ثواني
 loadMessages();
+setInterval(loadMessages, 3000);
 </script>
 
 </body>
