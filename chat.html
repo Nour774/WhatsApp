@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>دردشة جماعية</title>
+<style>
+  :root{
+    --accent:#6a0572;
+    --accent-2:#b5173a;
+    --bubble-self: linear-gradient(135deg,var(--accent),#8a2a7a);
+    --bubble-other:#ffffff;
+    --text-self:#ffffff;
+    --text-other:#222;
+    --max-bubble-width:78%;
+  }
+  html,body{height:100%;margin:0;font-family:"Tahoma",sans-serif;background:#f2f2f2}
+  /* خلفية الدردشة */
+  body::before{
+    content:"";
+    position:fixed;inset:0;
+    background-image:url('images/img.jpg');
+    background-size:cover;background-position:center;
+    filter:blur(6px) brightness(.55);
+    z-index:0;
+  }
+  #app{position:relative;z-index:1;display:flex;flex-direction:column;height:100vh;backdrop-filter: none;}
+  header{padding:12px 14px;color:#fff;display:flex;align-items:center;justify-content:space-between;}
+  header .title{font-weight:700;font-size:18px;text-shadow:0 1px 6px rgba(0,0,0,.45)}
+  #chat-container{flex:1;display:flex;flex-direction:column;padding:10px;gap:8px;max-width:920px;margin:0 auto;}
+  #messages-list{flex:1;overflow:auto;padding:12px 8px;display:flex;flex-direction:column;gap:8px;scroll-behavior:smooth}
+  .msg { display:block; padding:10px 12px; border-radius:18px; word-break:break-word; box-shadow:0 2px 6px rgba(0,0,0,.08); max-width:var(--max-bubble-width); position:relative; display:flex;flex-direction:column; gap:6px;}
+  .msg .meta{font-size:12px;opacity:.85;}
+  .msg .username{font-weight:700;margin-inline-start:6px}
+  .msg .time{font-size:11px;color:rgba(0,0,0,.45);margin-inline-end:6px}
+  .msg.self{align-self:flex-end;background:var(--bubble-self);color:var(--text-self); border-bottom-right-radius:6px}
+  .msg.other{align-self:flex-start;background:var(--bubble-other);color:var(--text-other); border-bottom-left-radius:6px}
+  /* محتوى الميديا */
+  .msg img, .msg video{max-width:320px;max-height:320px;border-radius:10px;display:block}
+  /* فقاعات قابلة للعرض الطويل */
+  .msg p{margin:0;white-space:pre-wrap;word-wrap:break-word}
+  /* زر التفاعل الصغير */
+  .msg .actions{display:flex;gap:8px;align-items:center;margin-top:4px}
+  .reaction-pill{background:rgba(255,255,255,.9);padding:4px 8px;border-radius:999px;font-size:13px;box-shadow:0 1px 3px rgba(0,0,0,.08);cursor:pointer}
+  /* واجهة الإدخال */
+  #composer{display:flex;gap:8px;padding:10px;background:linear-gradient(180deg, rgba(255,255,255,.8), rgba(255,255,255,.95));backdrop-filter: blur(6px)}
+  #composer input[type="text"]{flex:1;padding:12px 14px;border-radius:999px;border:1px solid rgba(0,0,0,.08);outline:none;font-size:15px}
+  #composer .btn{width:44px;height:44px;border-radius:50%;border:none;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  #composer .btn.attach{background:transparent;border:1px solid rgba(255,255,255,.14);color:#fff;backdrop-filter: blur(3px)}
+  /* ردود */
+  .reply-box{background:rgba(0,0,0,0.06);padding:6px 8px;border-radius:8px;font-size:13px;color:rgba(0,0,0,.7)}
+  /* قائمة الإيموجي (تظهر بعد ضغطة مطولة) */
+  #emoji-picker{position:fixed;display:none;gap:8px;padding:8px;background:rgba(255,255,255,0.98);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.18);z-index:50}
+  #emoji-picker button{font-size:20px;padding:6px;border-radius:8px;border:none;background:transparent;cursor:pointer}
+  /* استجابة الهاتف */
+  @media(max-width:600px){
+    :root{--max-bubble-width:92%}
+    header .title{font-size:16px}
+    .msg img,.msg video{max-width:72vw}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="title">دردشة جماعية</div>
+    <div style="color:#fff;font-size:13px;opacity:.95">مرحبا، <strong id="me-name"></strong></div>
+  </header>
+
+  <main id="chat-container" role="main">
+    <ul id="messages-list" aria-live="polite"></ul>
+
+    <div id="composer">
+      <button id="attach-btn" class="btn attach" title="إرفاق صورة/فيديو">+</button>
+      <input type="text" id="message-input" placeholder="اكتب رسالة..." aria-label="نص الرسالة">
+      <button id="send-btn" class="btn" title="إرسال">▶</button>
+    </div>
+  </main>
+</div>
+
+<!-- Emoji picker -->
+<div id="emoji-picker" role="dialog" aria-hidden="true"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  // --- إعداد Supabase ---
+  const SUPABASE_URL = "https://hmamaaqtnzevrrmgtgxk.supabase.co";
+  const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtYW1hYXF0bnpldnJybWd0Z3hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNTgzMDAsImV4cCI6MjA3NzkzNDMwMH0.tk_S2URpkYvf8xnsPJl3Dqh4jzKwhVm0alWl8oHo-SE";
+
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  // المستخدم الحالي من localStorage
+  const currentUserId = localStorage.getItem('chat_user_id');
+  const currentUsername = localStorage.getItem('chat_username');
+  if(!currentUserId || !currentUsername){
+    alert('لم يتم التعرف على المستخدم؛ سيتم إعادة التوجيه إلى صفحة الدخول.');
+    window.location.href = 'login.html';
+  }
+  document.getElementById('me-name').textContent = currentUsername;
+
+  // عناصر
+  const messagesList = document.getElementById('messages-list');
+  const messageInput = document.getElementById('message-input');
+  const sendBtn = document.getElementById('send-btn');
+  const attachBtn = document.getElementById('attach-btn');
+  const emojiPicker = document.getElementById('emoji-picker');
+
+  // مؤقت لضغط مطول
+  let longPressTimer = null;
+  let longPressTargetId = null;
+
+  // --- تنسيق الوقت عربي مختصر ---
+  function formatTime(iso){
+    try{
+      const d = new Date(iso);
+      // use user's locale (Arabic) — using options for concise form
+      return d.toLocaleString('ar-EG', { hour:'2-digit', minute:'2-digit' });
+    }catch(e){ return iso; }
+  }
+
+  // تحميل الرسائل من قاعدة البيانات (مع اسم المستخدم والتفاعلات)
+  async function loadMessages(){
+    try{
+      const { data, error } = await supabase
+        .from('chat')
+        .select('id,sender_id,message,media_url,type,reply_to,created_at, profiles(username), reactions(id,emoji,user_id)')
+        .order('created_at', { ascending: true });
+
+      if(error){ console.error('loadMessages error', error); return; }
+      messagesList.innerHTML = '';
+      // حفظ خريطة الرسائل لتسهيل عرض النص في الرد
+      const msgMap = {};
+      data.forEach(m => msgMap[m.id] = m);
+
+      data.forEach(msg => renderMessage(msg, msgMap));
+      // تمرير للأسفل
+      messagesList.scrollTop = messagesList.scrollHeight;
+    }catch(err){
+      console.error('unexpected loadMessages', err);
+    }
+  }
+
+  // عرض رسالة فردية
+  function renderMessage(msg, msgMap = {}){
+    const li = document.createElement('li');
+    li.className = 'msg ' + (msg.sender_id === currentUserId ? 'self' : 'other');
+    li.dataset.msgId = msg.id;
+
+    // رأس الرسالة: اسم + وقت
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'username';
+    nameSpan.textContent = (msg.profiles && msg.profiles.username) ? msg.profiles.username : 'مستخدم';
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'time';
+    timeSpan.textContent = formatTime(msg.created_at);
+    // ترتيب meta (اسم على اليمين وقت على اليسار)
+    meta.appendChild(nameSpan);
+    meta.appendChild(timeSpan);
+
+    li.appendChild(meta);
+
+    // إذا كانت رسالة رد، عرض مقتطف من الرسالة الهدف
+    if(msg.reply_to){
+      const original = msgMap[msg.reply_to];
+      const replyBox = document.createElement('div');
+      replyBox.className = 'reply-box';
+      replyBox.textContent = original ? (`رد على ${original.profiles?.username || 'مستخدم'}: ${original.message ? original.message.slice(0,140) : (original.media_url ? '[وسائط]' : '')}`) : 'رد';
+      li.appendChild(replyBox);
+    }
+
+    // نص الرسالة
+    if(msg.message && msg.message.trim() !== ''){
+      const p = document.createElement('p');
+      p.textContent = msg.message;
+      li.appendChild(p);
+    }
+
+    // وسائط (صورة أو فيديو)
+    if(msg.media_url){
+      if(msg.type === 'video'){
+        const v = document.createElement('video');
+        v.src = msg.media_url;
+        v.controls = true;
+        v.style.maxWidth = '100%';
+        v.style.borderRadius = '8px';
+        li.appendChild(v);
+      } else {
+        const img = document.createElement('img');
+        img.src = msg.media_url;
+        img.alt = 'صورة';
+        img.style.maxWidth = '100%';
+        li.appendChild(img);
+      }
+    }
+
+    // التفاعلات — اجمع الإيموجي ونسبتها
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    // حساب عدد كل إيموجي
+    const counts = {};
+    if(msg.reactions && msg.reactions.length){
+      msg.reactions.forEach(r=>{
+        counts[r.emoji] = (counts[r.emoji] || 0) + 1;
+      });
+    }
+    // أنشئ أزرار إيموجي صغيرة
+    Object.keys(counts).forEach(em=>{
+      const pill = document.createElement('button');
+      pill.className = 'reaction-pill';
+      pill.textContent = `${em} ${counts[em]}`;
+      pill.onclick = (e)=>{ e.stopPropagation(); toggleReaction(msg.id, em); };
+      actions.appendChild(pill);
+    });
+
+    // زر التعليق (اختياري) — هنا نستخدم النقر المطول لفتح picker، لكن نضيف زر سريع أيضاً
+    const replyBtn = document.createElement('button');
+    replyBtn.className = 'reaction-pill';
+    replyBtn.textContent = 'رد';
+    replyBtn.onclick = (e)=>{ e.stopPropagation(); replyToMessage(msg.id); };
+    actions.appendChild(replyBtn);
+
+    li.appendChild(actions);
+
+    // الاستجابة للضغط الطويل لفتح نافذة الإيموجي بالقرب من الرسالة
+    li.addEventListener('touchstart', (ev)=>startLongPress(ev, msg.id, li));
+    li.addEventListener('mousedown', (ev)=>startLongPress(ev, msg.id, li));
+    li.addEventListener('touchend', cancelLongPress);
+    li.addEventListener('mouseup', cancelLongPress);
+    li.addEventListener('mouseleave', cancelLongPress);
+
+    // النقر العادي يضع ردّ
+    li.addEventListener('click', ()=> replyToMessage(msg.id));
+
+    messagesList.appendChild(li);
+  }
+
+  // بدء مؤقت الضغط الطويل
+  function startLongPress(ev, msgId, el){
+    ev.preventDefault?.();
+    cancelLongPress();
+    longPressTargetId = msgId;
+    longPressTimer = setTimeout(()=>{
+      openEmojiPickerForElement(el, msgId);
+    }, 500); // 500ms لضغط طويل
+  }
+  function cancelLongPress(){
+    if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; longPressTargetId = null; }
+  }
+
+  // فتح قائمة إيموجي صغيرة قرب العنصر
+  function openEmojiPickerForElement(el, msgId){
+    // محتوى الإيموجي (يمكن توسيعها)
+    const emojis = ['👍','❤️','😂','🔥','😮','😢'];
+    emojiPicker.innerHTML = '';
+    emojis.forEach(em=>{
+      const btn = document.createElement('button');
+      btn.textContent = em;
+      btn.onclick = (e)=>{
+        e.stopPropagation();
+        addReaction(msgId, em);
+        closeEmojiPicker();
+      };
+      emojiPicker.appendChild(btn);
+    });
+    // تحديد موقع العنصر
+    const rect = el.getBoundingClientRect();
+    const pickerWidth = 220;
+    const top = Math.max(10, rect.top - 60);
+    const left = Math.max(10, rect.left - (pickerWidth/2) + (rect.width/2));
+    emojiPicker.style.left = left + 'px';
+    emojiPicker.style.top = top + 'px';
+    emojiPicker.style.display = 'flex';
+    emojiPicker.setAttribute('aria-hidden','false');
+    // إغلاق عند النقر في أي مكان
+    setTimeout(()=> window.addEventListener('click', closeEmojiPickerOnce), 10);
+  }
+  function closeEmojiPickerOnce(){ closeEmojiPicker(); window.removeEventListener('click', closeEmojiPickerOnce); }
+  function closeEmojiPicker(){ emojiPicker.style.display='none'; emojiPicker.setAttribute('aria-hidden','true'); }
+
+  // إضافة تفاعل
+  async function addReaction(chatId, emoji){
+    try{
+      // إذا كان المستخدم قد فعل نفس الإيموجي مسبقاً نحذفه
+      const { data: exists } = await supabase
+        .from('reactions')
+        .select('id')
+        .eq('chat_id', chatId)
+        .eq('user_id', currentUserId)
+        .eq('emoji', emoji)
+        .maybeSingle();
+
+      if(exists){
+        await supabase.from('reactions').delete().eq('id', exists.id);
+      } else {
+        await supabase.from('reactions').insert([{ chat_id: chatId, user_id: currentUserId, emoji }]);
+      }
+      await loadMessages();
+    }catch(err){ console.error('addReaction error', err); }
+  }
+
+  // تبديل تفاعل سريع عند الضغط على حبة
+  async function toggleReaction(chatId, emoji){
+    await addReaction(chatId, emoji);
+  }
+
+  // وضع الرد
+  let pendingReplyTo = null;
+  function replyToMessage(msgId){
+    pendingReplyTo = msgId;
+    messageInput.focus();
+    messageInput.placeholder = 'أنت ترد على رسالة — اضغط إرسال لإرسال رد';
+  }
+
+  // إرسال رسالة نصية
+  async function sendMessage(){
+    const text = messageInput.value.trim();
+    if(!text && !pendingMedia) return;
+    try{
+      // إدراج الرسالة (إرسال reply_to إذا وُجد)
+      const insertObj = {
+        sender_id: currentUserId,
+        message: text || '',
+        reply_to: pendingReplyTo || null,
+        type: pendingMedia ? pendingMedia.type : 'text',
+        media_url: pendingMedia ? pendingMedia.url : null
+      };
+      const { data: newMsg, error: insertErr } = await supabase
+        .from('chat')
+        .insert([insertObj])
+        .select('id, sender_id, message, media_url, type, reply_to, created_at, profiles(username)')
+        .maybeSingle();
+
+      if(insertErr){ console.error('sendMessage insertErr', insertErr); return; }
+
+      // إذا كانت لدينا وسائط، أدخل سجل في جدول media مرتبطًا بالرسالة
+      if(pendingMedia && newMsg && newMsg.id){
+        try{
+          await supabase.from('media').insert([{ chat_id: newMsg.id, media_type: pendingMedia.type, url: pendingMedia.url }]);
+        }catch(e){ console.warn('failed to insert to media table', e); }
+      }
+
+      // إعادة تحميل الرسائل لضمان التزامن مع التفاعلات والبيانات المرتبطة
+      pendingReplyTo = null;
+      pendingMedia = null;
+      messageInput.value = '';
+      messageInput.placeholder = 'اكتب رسالة...';
+      await loadMessages();
+      messagesList.scrollTop = messagesList.scrollHeight;
+    }catch(err){
+      console.error('sendMessage unexpected', err);
+    }
+  }
+
+  // التقاط ملف ورفعه ثم إرسال رسالة تحتوي على الرابط
+  let pendingMedia = null; // { type, url }
+  attachBtn.addEventListener('click', async ()=>{
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*,video/*';
+    input.onchange = async ()=>{
+      if(!input.files || !input.files[0]) return;
+      const f = input.files[0];
+      const ext = f.name.split('.').pop();
+      const fileName = `${currentUserId}_${Date.now()}.${ext}`;
+      try{
+        const { data: uploadData, error: uploadErr } = await supabase.storage.from('chat-media').upload(fileName, f, { cacheControl: '3600', upsert: false });
+        if(uploadErr){
+          console.error('storage upload error', uploadErr);
+          alert('فشل رفع الملف إلى التخزين.');
+          return;
+        }
+        // الحصول على public url
+        const urlRes = await supabase.storage.from('chat-media').getPublicUrl(fileName);
+        const publicUrl = (urlRes && urlRes.data && (urlRes.data.publicUrl || urlRes.data.publicURL)) ? (urlRes.data.publicUrl || urlRes.data.publicURL) : (urlRes.publicUrl || '');
+        // type
+        const type = f.type.startsWith('image') ? 'image' : 'video';
+        // احتفظ بالوسائط مؤقتاً وأرسلها عبر sendMessage
+        pendingMedia = { type, url: publicUrl };
+        // إرسال مباشر (بدون نص) — يمكنك تغيير السلوك لكتابة نص قبل الإرسال
+        await sendMessage();
+      }catch(e){ console.error('attach error', e); alert('حدث خطأ أثناء رفع الملف'); }
+    };
+    input.click();
+  });
+
+  // حدث الإرسال
+  sendBtn.addEventListener('click', ()=> sendMessage());
+  messageInput.addEventListener('keypress', (e)=>{ if(e.key === 'Enter'){ e.preventDefault(); sendMessage(); } });
+
+  // polling بسيط كل 2.5 ثانية + تحميل أولي
+  loadMessages();
+  setInterval(loadMessages, 2500);
+
+  // تحسين: الاشتراك في Realtime (إن أردت أقل حمل وبأداء أفضل)
+  // ملاحظة: Supabase Realtime يتطلب تمكين الإعدادات المناسبة على الخادم و/أو قواعد Row Level Security.
+  try{
+    const channel = supabase.channel('public:chat')
+      .on('postgres_changes', { event:'INSERT', schema:'public', table:'chat' }, payload => {
+        // عند وصول رسالة جديدة، أعد تحميل (أو ضمها مباشرة)
+        loadMessages();
+      })
+      .subscribe();
+  }catch(e){
+    // إن فشل الاشتراك فلا مشكلة، نستخدم الـ polling
+    console.warn('realtime subscribe failed (silent):', e);
+  }
+
+  // إغلاق الـ emoji picker عندما يضغط المستخدم Escape
+  window.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') closeEmojiPicker(); });
+
+  // تنظيف النص الافتراضي عند النقر في المكان
+  messageInput.addEventListener('focus', ()=>{ if(pendingReplyTo === null) messageInput.placeholder = 'اكتب رسالة...'; });
+
+</script>
+</body>
+</html>
