@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eid al-Fitr Extended Presentation</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(to bottom, #fff8f0, #ffe5d4);
+      color: #333;
+      scroll-behavior: smooth;
+    }
+
+    header {
+      background: #d35400;
+      color: white;
+      padding: 10px 0; 
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.5em; 
+    }
+
+    nav {
+      text-align: center;
+      margin: 5px 0;
+    }
+
+    nav button {
+      background: #f39c12;
+      color: white;
+      border: none;
+      padding: 8px 15px; 
+      margin: 3px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background 0.3s;
+      font-size: 0.9em;
+    }
+
+    nav button:hover {
+      background: #e67e22;
+    }
+
+    #play-all-btn {
+      display: block;
+      margin: 10px auto;
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1em;
+    }
+
+    section {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 15px 20px;
+      background: rgba(255, 255, 255, 0.95);
+      border-radius: 15px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      opacity: 0;
+      transform: translateY(30px);
+      transition: all 0.8s ease;
+    }
+
+    section.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    h2 {
+      color: #d35400;
+      text-align: center;
+      margin-top: 0;
+    }
+
+    p {
+      margin-bottom: 8px;
+    }
+
+    img, video {
+      display: block;
+      margin: 10px auto;
+      max-width: 100%;
+      border-radius: 10px;
+    }
+
+    footer {
+      text-align: center;
+      padding: 15px;
+      background: #d35400;
+      color: white;
+      font-size: 0.9em;
+    }
+
+    @media (max-width: 600px) {
+      header h1 { font-size: 1.3em; }
+      nav button { padding: 6px 12px; font-size: 0.8em; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Eid al-Fitr: Extended Presentation</h1>
+    <nav>
+      <button onclick="scrollToSection('intro')">Introduction</button>
+      <button onclick="scrollToSection('significance')">Significance</button>
+      <button onclick="scrollToSection('date')">Date & Duration</button>
+      <button onclick="scrollToSection('rituals')">Rituals</button>
+      <button onclick="scrollToSection('culture')">Culture</button>
+      <button onclick="scrollToSection('conclusion')">Conclusion</button>
+    </nav>
+    <button id="play-all-btn">Play All Audios</button>
+  </header>
+
+  <!-- Sections -->
+  <section id="intro">
+    <h2>Introduction</h2>
+    <p>Eid al-Fitr, also known as the "Festival of Breaking the Fast," is one of the two major Islamic holidays celebrated worldwide. It marks the end of Ramadan, a month of fasting from dawn to sunset, spiritual reflection, and self-discipline.</p>
+    <p>The festival is not only a religious observance but also a time for social gatherings, family celebrations, and festive meals. Muslims come together to rejoice after a month of fasting and devotion.</p>
+    <img src="https://upload.wikimedia.org/wikipedia/commons/5/5b/Eid_celebration.jpg" alt="Eid Celebration">
+  </section>
+
+  <section id="significance">
+    <h2>Significance</h2>
+    <p>Eid al-Fitr emphasizes gratitude, compassion, and community. It reminds Muslims to be thankful for their blessings and to help those in need.</p>
+    <p>One of the main practices of Eid is giving <strong>Zakat al-Fitr</strong>, a mandatory charity for the poor, ensuring that everyone can participate in the festivities.</p>
+  </section>
+
+  <section id="date">
+    <h2>Date and Duration</h2>
+    <p>Eid al-Fitr begins on the first day of <strong>Shawwal</strong>, the tenth month of the Islamic lunar calendar. The exact date depends on the sighting of the crescent moon, which may vary across countries.</p>
+    <p>The celebrations last one to three days, featuring prayers, feasts, and community gatherings. The night before Eid, known as <strong>Chand Raat</strong>, is full of preparation, shopping, and decorating homes.</p>
+    <img src="https://upload.wikimedia.org/wikipedia/commons/8/8f/Chand_Raat.jpg" alt="Chand Raat Celebration">
+  </section>
+
+  <section id="rituals">
+    <h2>Rituals and Traditions</h2>
+    <p>A key part of Eid is the <strong>Eid prayer</strong>, performed in large congregations at mosques or open spaces. The prayer consists of two units (rakats) with additional Takbirs and a sermon (khutbah).</p>
+    <p>After the prayers, Muslims greet each other with "<strong>Eid Mubarak</strong>" and visit family and friends. Sharing food, gifts, and sweets is an essential part of the celebration.</p>
+    <video controls>
+      <source src="https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4" type="video/mp4">
+      Your browser does not support the video tag.
+    </video>
+    <p>Homes are decorated with lights, flowers, and ornaments, and special meals are prepared, including sweet dishes like dates, pastries, and regional delicacies.</p>
+    <img src="https://upload.wikimedia.org/wikipedia/commons/0/09/Eid_food.jpg" alt="Eid Traditional Food">
+  </section>
+
+  <section id="culture">
+    <h2>Cultural Variations</h2>
+    <p>Eid al-Fitr is celebrated differently around the world. In Indonesia, large parades and performances highlight the festive spirit.</p>
+    <p>In Morocco, families prepare traditional dishes such as <strong>Seffa</strong> and <strong>Chebakia</strong>, and children receive gifts or money called <strong>Eidi</strong>.</p>
+    <p>In the Maldives, decorations and communal prayers create a festive atmosphere for the entire community, emphasizing unity and gratitude.</p>
+  </section>
+
+  <section id="conclusion">
+    <h2>Conclusion</h2>
+    <p>Eid al-Fitr is a time of joy, reflection, and gratitude. It strengthens spiritual and social bonds, encouraging compassion, forgiveness, and generosity.</p>
+    <p>Through prayers, charity, festive meals, and family gatherings, Muslims worldwide celebrate Eid al-Fitr, sharing the blessings and joy of this special festival.</p>
+  </section>
+
+  <footer>
+    &copy; 2025 Eid al-Fitr Extended Presentation
+  </footer>
+
+  <script>
+    // Smooth scroll
+    function scrollToSection(id) {
+      document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Fade-in sections
+    const sections = document.querySelectorAll('section');
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if(entry.isIntersecting) entry.target.classList.add('visible');
+      });
+    }, { threshold: 0.2 });
+    sections.forEach(sec => observer.observe(sec));
+
+    // Play all audios sequentially
+    const audioUrls = [
+      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3",
+      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3",
+      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3",
+      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3",
+      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3",
+      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3",
+      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3",
+      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3",
+      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-10.mp3",
+      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-11.mp3",
+      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-12.mp3",
+      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3",
+      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-14.mp3",
+      "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-15.mp3"
+    ];
+
+    let currentAudioIndex = 0;
+    let currentAudio = null;
+    let isPlayingAll = false;
+
+    const playAllBtn = document.getElementById('play-all-btn');
+
+    playAllBtn.addEventListener('click', () => {
+      if(isPlayingAll) {
+        // Stop all
+        if(currentAudio) {
+          currentAudio.pause();
+          currentAudio.currentTime = 0;
+        }
+        isPlayingAll = false;
+        playAllBtn.textContent = "Play All Audios";
+      } else {
+        isPlayingAll = true;
+        playAllBtn.textContent = "Stop Audios";
+        currentAudioIndex = 0;
+        playNextAudio();
+      }
+    });
+
+    function playNextAudio() {
+      if(!isPlayingAll || currentAudioIndex >= audioUrls.length) {
+        isPlayingAll = false;
+        playAllBtn.textContent = "Play All Audios";
+        return;
+      }
+      currentAudio = new Audio(audioUrls[currentAudioIndex]);
+      currentAudio.play();
+      currentAudio.onended = () => {
+        currentAudioIndex++;
+        playNextAudio();
+      };
+    }
+  </script>
+
+</body>
+</html>
