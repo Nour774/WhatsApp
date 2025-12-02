@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>تسجيل الدخول / إنشاء حساب</title>
+  <style>
+    body {
+      font-family: "Tahoma", sans-serif;
+      background: linear-gradient(135deg,#6a0572,#b5173a);
+      margin:0;display:flex;align-items:center;justify-content:center;height:100vh;
+    }
+    .container {
+      background:#fff0f6;padding:30px;border-radius:15px;
+      box-shadow:0 4px 25px rgba(0,0,0,0.3);
+      width:360px;text-align:center;position:relative;
+    }
+    h2 { margin-bottom:20px;color:#6a0572;text-shadow:1px 1px 3px #b5173a; }
+    input,button {
+      width:100%;padding:12px;margin:10px 0;border-radius:8px;
+      border:2px solid #6a0572;box-sizing:border-box;font-size:14px
+    }
+    input:focus { border-color:#b5173a }
+    button {
+      background:linear-gradient(135deg,#b5173a,#6a0572);
+      color:#fff;border:none;cursor:pointer;font-weight:700;transition:.25s
+    }
+    button:disabled{background:#ccc;cursor:not-allowed}
+    .password-wrapper{position:relative}
+    .password-wrapper input{padding-right:40px}
+    .toggle-password{
+      position:absolute;right:10px;top:50%;
+      transform:translateY(-50%);cursor:pointer;
+      color:#b5173a;width:22px;height:22px;
+    }
+    .switch{margin-top:12px;font-size:14px}
+    .switch span{color:#6a0572}
+    .switch a{color:#6a0572;font-weight:700;text-decoration:none;margin-inline-start:6px;cursor:pointer}
+    .alert{position:absolute;top:-56px;left:50%;transform:translateX(-50%);
+      padding:10px 14px;border-radius:8px;font-weight:700;display:none;
+      box-shadow:0 2px 8px rgba(0,0,0,.2)}
+    .alert.success{background:#4CAF50;color:#fff}
+    .alert.error{background:#f44336;color:#fff}
+    #invite_code{display:none}
+    .note { font-size:12px;color:#fff;margin-top:8px;opacity:.9;text-align:center }
+  </style>
+</head>
+<body>
+  <div class="container" role="main">
+    <div id="alert-box" class="alert" role="status" aria-live="polite"></div>
+
+    <h2 id="form-title">تسجيل الدخول</h2>
+
+    <form id="auth-form" autocomplete="off" novalidate>
+      <input type="text" id="username" placeholder="اسم المستخدم" required autocomplete="username">
+      <input type="text" id="invite_code" placeholder="كود الدعوة">
+
+      <div class="password-wrapper">
+        <input type="password" id="password" placeholder="كلمة المرور" required autocomplete="new-password">
+        <!-- أيقونة عرض / إخفاء -->
+        <svg id="toggle-pass" class="toggle-password" viewBox="0 0 24 24" aria-hidden="true" title="إظهار/إخفاء كلمة المرور">
+          <path id="eye-icon" fill="currentColor"
+            d="M12 5c-7 0-11 7-11 7s4 7 11 7 11-7 11-7-4-7-11-7zm0 12a5 5 0 1 1 .001-10.001A5 5 0 0 1 12 17z" />
+        </svg>
+      </div>
+
+      <button type="submit" id="submit-btn">دخول</button>
+    </form>
+
+    <div class="switch">
+      <span id="switch-label">ليس لديك حساب؟</span>
+      <a id="switch-link" role="button">إنشاء حساب جديد</a>
+    </div>
+
+    <div class="note">ملاحظة: التسجيل يتطلب كود دعوة صالح. كلمات المرور محفوظة بشكل مشفّر.</div>
+  </div>
+
+  <!-- use jsDelivr for supabase (less blocked by tracking prevention) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <!-- bcryptjs for browser -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js"></script>
+
+  <script>
+    // ------- إعداد Supabase (استخدم مفاتيح مشروعك) -------
+    const SUPABASE_URL = "https://hmamaaqtnzevrrmgtgxk.supabase.co";
+    const SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtYW1hYXF0bnpldnJybWd0Z3hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNTgzMDAsImV4cCI6MjA3NzkzNDMwMH0.tk_S2URpkYvf8xnsPJl3Dqh4jzKwhVm0alWl8oHo-SE";
+
+    if (!window.supabase || !window.supabase.createClient) {
+      console.error("Supabase library failed to load.");
+      alert("فشل تحميل مكتبة Supabase. تأكد من اتصال الإنترنت أو استخدم نسخة ثابتة من CDN.");
+    }
+    if (!window.bcrypt && !window.dcodeIO) {
+      console.error("bcryptjs library failed to load.");
+      alert("فشل تحميل مكتبة bcryptjs. تأكد من اتصال الإنترنت.");
+    }
+
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    // اختيار مكتبة bcrypt المتاحة في المتصفح (تحمّل عدة أسماء عبر CDNs)
+    const bcryptLib = window.bcrypt || window.dcodeIO && window.dcodeIO.bcrypt || window.dcodeIO_bcrypt || null;
+
+    // ---- عناصر الواجهة ----
+    const alertBox = document.getElementById('alert-box');
+    const formTitle = document.getElementById('form-title');
+    const switchLabel = document.getElementById('switch-label');
+    const switchLink = document.getElementById('switch-link');
+    const submitBtn = document.getElementById('submit-btn');
+    const inviteCodeEl = document.getElementById('invite_code');
+    const togglePass = document.getElementById('toggle-pass');
+    const eyeIcon = document.getElementById('eye-icon');
+    const passwordInput = document.getElementById('password');
+
+    let isLogin = true;
+
+    function showAlert(msg, type = 'error') {
+      alertBox.textContent = msg;
+      alertBox.className = 'alert ' + (type === 'success' ? 'success' : 'error');
+      alertBox.style.display = 'block';
+      clearTimeout(alertBox._t);
+      alertBox._t = setTimeout(() => alertBox.style.display = 'none', 5500);
+      // also log
+      if (type === 'error') console.warn("USER ERROR:", msg);
+      else console.info("USER:", msg);
+    }
+
+    // تبديل عرض/إخفاء كلمة المرور
+    togglePass.addEventListener('click', () => {
+      const hidden = passwordInput.type === 'password';
+      passwordInput.type = hidden ? 'text' : 'password';
+      eyeIcon.setAttribute('d', hidden
+        ? "M12 5c-7 0-11 7-11 7s4 7 11 7 11-7 11-7-4-7-11-7zm0 12a5 5 0 1 1 .001-10.001A5 5 0 0 1 12 17z"
+        : "M2 4.27 3.28 3 21 20.72 19.73 22l-2.2-2.2C15.88 21.2 14 22 12 22c-7 0-11-7-11-7 1.21-2.13 3.05-3.91 5.21-5.1L2 4.27zm18.44 6.65C21.35 12.28 23 14 23 14s-4 7-11 7c-2.03 0-3.92-.79-5.52-1.92l1.45-1.45A6 6 0 0 0 18 12a6 6 0 0 0-.63-2.67l1.45-1.45c.76.75 1.39 1.66 1.62 2.04z");
+    });
+
+    // تبديل بين نموذج تسجيل الدخول وإنشاء الحساب
+    switchLink.addEventListener('click', (e) => {
+      e?.preventDefault?.();
+      toggleForm();
+    });
+
+    function toggleForm() {
+      isLogin = !isLogin;
+      if (isLogin) {
+        formTitle.textContent = 'تسجيل الدخول';
+        submitBtn.textContent = 'دخول';
+        switchLabel.textContent = 'ليس لديك حساب؟';
+        switchLink.textContent = 'إنشاء حساب جديد';
+        inviteCodeEl.style.display = 'none';
+      } else {
+        formTitle.textContent = 'إنشاء حساب جديد';
+        submitBtn.textContent = 'تسجيل';
+        switchLabel.textContent = 'لديك حساب؟';
+        switchLink.textContent = 'تسجيل الدخول';
+        inviteCodeEl.style.display = 'block';
+      }
+    }
+
+    // ==== منطقيات التسجيل و الدخول (بدون Supabase Auth) ====
+    document.getElementById('auth-form').addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      submitBtn.disabled = true;
+
+      const username = document.getElementById('username').value.trim();
+      const password = passwordInput.value;
+      const invite = inviteCodeEl.value.trim();
+
+      if (!username || username.length < 2) { showAlert('الرجاء إدخال اسم مستخدم صالح (حرفان على الأقل)'); submitBtn.disabled = false; return; }
+      if (!password || password.length < 6) { showAlert('كلمة المرور يجب أن تكون 6 أحرف على الأقل'); submitBtn.disabled = false; return; }
+
+      if (!bcryptLib) {
+        showAlert('مشكلة تحميل مكتبة التشفير (bcrypt). أعد تحميل الصفحة أو تأكد من اتصال الإنترنت.');
+        submitBtn.disabled = false;
+        console.error('bcrypt library is missing (checked window.bcrypt / window.dcodeIO.bcrypt)');
+        return;
+      }
+
+      try {
+        if (isLogin) {
+          // تسجيل الدخول: جلب السجل ومقارنة الهاش
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('id,password_hash,role')
+            .eq('username', username)
+            .maybeSingle(); // maybeSingle avoids 406 when no rows
+
+          if (error) {
+            console.error('Supabase select error:', error);
+            showAlert('خطأ في التواصل مع قاعدة البيانات');
+            submitBtn.disabled = false; return;
+          }
+          if (!profile) {
+            showAlert('اسم المستخدم غير موجود'); submitBtn.disabled = false; return;
+          }
+
+          const match = (typeof bcryptLib.compareSync === 'function')
+            ? bcryptLib.compareSync(password, profile.password_hash)
+            : false;
+
+          if (!match) {
+            showAlert('اسم المستخدم أو كلمة المرور غير صحيحة');
+            submitBtn.disabled = false; return;
+          }
+
+          // تسجيل الدخول ناجح — خزّن جلسة بسيطة في localStorage
+          try {
+            localStorage.setItem('chat_user_id', profile.id);
+            localStorage.setItem('chat_username', username);
+            localStorage.setItem('chat_user_role', profile.role || 'user');
+          } catch (err) {
+            console.warn('Could not write to localStorage:', err);
+          }
+
+          showAlert('تم تسجيل الدخول! جاري التحويل...', 'success');
+          setTimeout(() => { window.location.href = 'chat.html'; }, 800);
+
+        } else {
+          // إنشاء حساب: تحقق من كود الدعوة
+          if (!invite) { showAlert('كود الدعوة مطلوب'); submitBtn.disabled = false; return; }
+
+          const { data: inv, error: invErr } = await supabase
+            .from('invchat')
+            .select('*')
+            .eq('code', invite)
+            .eq('used', false)
+            .maybeSingle();
+
+          if (invErr) {
+            console.error('invchat select error:', invErr);
+            showAlert('خطأ في التحقق من كود الدعوة');
+            submitBtn.disabled = false; return;
+          }
+          if (!inv) { showAlert('كود الدعوة غير صالح أو مستخدم'); submitBtn.disabled = false; return; }
+
+          // تأكد من عدم وجود اسم مستخدم مكرر
+          const { data: exists } = await supabase
+            .from('profiles')
+            .select('id')
+            .eq('username', username)
+            .limit(1)
+            .maybeSingle();
+
+          if (exists) { showAlert('اسم المستخدم محجوز، اختر اسمًا آخر'); submitBtn.disabled = false; return; }
+
+          // تجزئة كلمة المرور
+          const hashed = bcryptLib.hashSync(password, 10);
+
+// إدراج المستخدم + تمرير كود الدعوة فعلياً
+const { data: newUser, error: insertErr } = await supabase
+  .from('profiles')
+  .insert([
+    {
+      username,
+      password_hash: hashed,
+      invite_code: invite   // ← هنا كان الخطأ
+    }
+  ])
+  .select()
+  .maybeSingle();
+
+          if (insertErr) {
+            console.error('profiles insert error:', insertErr);
+            showAlert('فشل إنشاء الحساب. حاول لاحقًا');
+            submitBtn.disabled = false; return;
+          }
+
+          // وسم كود الدعوة كمستخدَم
+          const { error: updErr } = await supabase
+            .from('invchat')
+            .update({ used: true })
+            .eq('code', invite);
+
+          if (updErr) {
+            console.warn('Unable to mark invite used:', updErr);
+            // not fatal — نخبر المستخدم لكنه قد يسبب إعادة استخدام الكود لو فشل
+          }
+
+          // نجاح — خزّن جلسة بسيطة
+          try {
+            localStorage.setItem('chat_user_id', newUser.id);
+            localStorage.setItem('chat_username', username);
+            localStorage.setItem('chat_user_role', newUser.role || 'user');
+          } catch (err) {
+            console.warn('Could not write session to localStorage:', err);
+          }
+
+          showAlert('تم إنشاء الحساب! تم تسجيل الدخول تلقائياً', 'success');
+          setTimeout(() => { window.location.href = 'chat.html'; }, 900);
+        }
+      } catch (err) {
+        console.error('Unexpected error during auth flow:', err);
+        showAlert('خطأ غير متوقع — تفحص الكونسول لمزيد من التفاصيل');
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+  </html>
