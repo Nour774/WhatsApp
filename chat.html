@@ -59,6 +59,24 @@
     .msg img,.msg video{max-width:72vw}
   }
 </style>
+
+  
+  /* تطبيق*/
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+
+body {
+  background: url("images/img.jpg") no-repeat center center fixed;
+  background-size: cover;
+    }
+
+    
+  </style>
+  
 </head>
 <body>
 <div id="app">
@@ -414,5 +432,12 @@
   messageInput.addEventListener('focus', ()=>{ if(pendingReplyTo === null) messageInput.placeholder = 'اكتب رسالة...'; });
 
 </script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
+</script>
+  
 </body>
 </html>
