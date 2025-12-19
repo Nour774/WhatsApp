@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>تسجيل الدخول / إنشاء حساب</title>
+
+<style>
+body{
+  font-family:Tahoma,sans-serif;
+  background:linear-gradient(135deg,#6a0572,#b5173a);
+  margin:0;display:flex;align-items:center;justify-content:center;height:100vh
+}
+.container{
+  background:#fff0f6;padding:30px;border-radius:15px;
+  box-shadow:0 4px 25px rgba(0,0,0,.3);
+  width:360px;text-align:center;position:relative
+}
+h2{color:#6a0572;margin-bottom:20px}
+input,button{
+  width:100%;padding:12px;margin:10px 0;border-radius:8px;
+  border:2px solid #6a0572;font-size:14px
+}
+button{
+  background:linear-gradient(135deg,#b5173a,#6a0572);
+  color:#fff;border:none;cursor:pointer;font-weight:700
+}
+button:disabled{opacity:.6}
+.alert{
+  position:absolute;top:-55px;left:50%;transform:translateX(-50%);
+  padding:10px 14px;border-radius:8px;font-weight:700;display:none
+}
+.alert.error{background:#f44336;color:#fff}
+.alert.success{background:#4CAF50;color:#fff}
+.switch{margin-top:12px}
+.switch a{cursor:pointer;font-weight:700;color:#6a0572}
+#invite_code{display:none}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<div id="alert" class="alert"></div>
+
+<h2 id="title">تسجيل الدخول</h2>
+
+<form id="form">
+  <input id="username" placeholder="اسم المستخدم" required>
+  <input id="invite_code" placeholder="كود الدعوة">
+  <input id="password" type="password" placeholder="كلمة المرور" required>
+  <button id="submit">دخول</button>
+</form>
+
+<div class="switch">
+  <span id="switch-text">ليس لديك حساب؟</span>
+  <a id="switch-link">إنشاء حساب</a>
+</div>
+
+</div>
+
+<!-- المكتبات -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js"></script>
+
+<script>
+/* ================== فحص تحميل المكتبات ================== */
+if(!window.supabase || !window.supabase.createClient){
+  document.body.innerHTML="<h3 style='color:white'>فشل تحميل Supabase</h3>";
+  throw new Error("Supabase failed");
+}
+if(!window.bcrypt){
+  document.body.innerHTML="<h3 style='color:white'>فشل تحميل bcrypt</h3>";
+  throw new Error("bcrypt failed");
+}
+
+/* ================== إعداد Supabase ================== */
+const supabase = window.supabase.createClient(
+  "https://hmamaaqtnzevrrmgtgxk.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhtYW1hYXF0bnpldnJybWd0Z3hrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIzNTgzMDAsImV4cCI6MjA3NzkzNDMwMH0.tk_S2URpkYvf8xnsPJl3Dqh4jzKwhVm0alWl8oHo-SE"
+);
+
+/* ================== عناصر ================== */
+const alertBox = document.getElementById("alert");
+const title = document.getElementById("title");
+const invite = document.getElementById("invite_code");
+const switchText = document.getElementById("switch-text");
+const switchLink = document.getElementById("switch-link");
+const submit = document.getElementById("submit");
+
+let loginMode = true;
+
+/* ================== أدوات ================== */
+function show(msg,type="error"){
+  alertBox.textContent=msg;
+  alertBox.className="alert "+type;
+  alertBox.style.display="block";
+  setTimeout(()=>alertBox.style.display="none",4000);
+}
+
+/* ================== تبديل الوضع ================== */
+switchLink.onclick = ()=>{
+  loginMode=!loginMode;
+  if(loginMode){
+    title.textContent="تسجيل الدخول";
+    submit.textContent="دخول";
+    switchText.textContent="ليس لديك حساب؟";
+    switchLink.textContent="إنشاء حساب";
+    invite.style.display="none";
+  }else{
+    title.textContent="إنشاء حساب";
+    submit.textContent="تسجيل";
+    switchText.textContent="لديك حساب؟";
+    switchLink.textContent="تسجيل الدخول";
+    invite.style.display="block";
+  }
+};
+
+/* ================== المعالجة ================== */
+document.getElementById("form").onsubmit = async e=>{
+e.preventDefault();
+submit.disabled=true;
+
+const username=usernameInput.value.trim();
+const password=passwordInput.value;
+const code=invite.value.trim();
+
+try{
+
+if(loginMode){
+  const {data:user}=await supabase
+    .from("profiles")
+    .select("id,password_hash,role")
+    .eq("username",username)
+    .maybeSingle();
+
+  if(!user) return show("المستخدم غير موجود");
+
+  if(!bcrypt.compareSync(password,user.password_hash))
+    return show("كلمة المرور خاطئة");
+
+  localStorage.setItem("chat_user_id",user.id);
+  localStorage.setItem("chat_username",username);
+  localStorage.setItem("chat_user_role",user.role||"user");
+
+  show("تم تسجيل الدخول","success");
+  setTimeout(()=>location.href="chat.html",700);
+}
+
+else{
+  if(!code) return show("كود الدعوة مطلوب");
+
+  const {data:inv}=await supabase
+    .from("invchat")
+    .select("*")
+    .eq("code",code)
+    .eq("used",false)
+    .maybeSingle();
+
+  if(!inv) return show("كود غير صالح");
+
+  const hash=bcrypt.hashSync(password,10);
+
+  const {data:newUser,error}=await supabase
+    .from("profiles")
+    .insert([{username,password_hash:hash,invite_code:code}])
+    .select()
+    .maybeSingle();
+
+  if(error) return show("فشل إنشاء الحساب");
+
+  await supabase.from("invchat").update({used:true}).eq("code",code);
+
+  localStorage.setItem("chat_user_id",newUser.id);
+  localStorage.setItem("chat_username",username);
+  localStorage.setItem("chat_user_role",newUser.role||"user");
+
+  show("تم إنشاء الحساب","success");
+  setTimeout(()=>location.href="chat.html",700);
+}
+
+}catch(err){
+  console.error(err);
+  show("خطأ غير متوقع");
+}finally{
+  submit.disabled=false;
+}
+};
+</script>
+</body>
+  </html>
